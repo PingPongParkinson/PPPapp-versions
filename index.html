@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingPongParkinsonApp</title>
+    <link type="text/css" rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+    <script type="application/javascript" src="composeApp.js" defer></script>
+</head>
+<body>
+<img src="composeResources/pingpongparkinsonapp.composeapp.generated.resources/drawable/loading.gif" alt="Loading icon">
+<div id="root">
+    <h1>Loading...
+    </h1></div>
+<script>
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function (event) {
+    // If the Kotlin app has registered a handler, call it
+    if (window.handleBackPress) {
+      window.handleBackPress();
+      // Restore the current state so the browser doesn’t navigate away
+      window.history.pushState(null, "", window.location.href);
+    }
+  };
+
+     // Optional: prevent reload swipe or keyboard shortcuts (for PWA-like UX)
+     window.addEventListener("beforeunload", function (e) {
+       e.preventDefault();
+       e.returnValue = ""; // Some browsers show a confirmation dialog
+     });</script>
+</body>
+</html>
