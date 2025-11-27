@@ -1,44 +1,61 @@
-name: iOS starter workflow
+name: Build and Deploy iOS App
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main # Or your release branch
 
 jobs:
   build:
-    name: Build and Test default scheme using any available iPhone simulator
     runs-on: macos-latest
-
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set Default Scheme
-        run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
-      - name: Build
-        env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
-        run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
-      - name: Test
-        env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
-        run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Ruby (Needed for Fastlane and Certs)
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1' # Check for a version compatible with fastlane/latest macOS runner
+
+    - name: Install Dependencies
+      run: |
+        gem install bundler # Install bundler if needed
+        # cd into your 'ios' directory if your Xcode project isn't at the root
+        # pod install 
+        
+    - name: Import Apple Code Signing Certificates
+      # This Action decodes and imports your certs/profiles into a temporary keychain
+      uses: apple-actions/import-codesign-certs@v3
+      with:
+        p12-file-base64: ${{ secrets.P12_CERTIFICATE_BASE64 }}
+        p12-password: ${{ secrets.P12_PASSWORD }}
+        mobileprovision-file-base64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        # The key name here must match the file name you encoded!
+
+    - name: Build and Archive the iOS App
+      # Use an action or the native 'xcodebuild' command
+      run: |
+        xcodebuild -workspace YourProject.xcworkspace -scheme YourScheme \
+        -configuration Release archive -archivePath build/YourApp.xcarchive \
+        CODE_SIGN_IDENTITY="Apple Distribution" \
+        PROVISIONING_PROFILE_SPECIFIER="Your Provisioning Profile Name"
+
+    - name: Export .IPA
+      run: |
+        # Export the archive to a final .ipa file
+        xcodebuild -exportArchive -archivePath build/YourApp.xcarchive \
+        -exportPath build -exportOptionsPlist path/to/ExportOptions.plist
+        
+    - name: Upload to TestFlight/App Store Connect
+      uses: apple-actions/upload-testflight-build@v3
+      with:
+        app-path: build/YourApp.ipa # Path to the .ipa file created in the previous step
+        issuer-id: ${{ secrets.APP_STORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APP_STORE_KEY_ID }}
+        api-private-key: ${{ secrets.APP_STORE_PRIVATE_KEY }} # Note the secret name
+        
+    - name: Clean Up Keychain
+      # Good practice to clean up the temporary keychain after the job is done
+      run: |
+        security delete-keychain $HOME/Library/Keychains/temp-keychain.keychain
