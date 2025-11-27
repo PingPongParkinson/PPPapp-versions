@@ -37,20 +37,20 @@ jobs:
       # Use an action or the native 'xcodebuild' command
       run: |
         xcodebuild -workspace YourProject.xcworkspace -scheme YourScheme \
-        -configuration Release archive -archivePath build/YourApp.xcarchive \
+        -configuration Release archive -archivePath build/PPPiosApp.xcarchive \
         CODE_SIGN_IDENTITY="Apple Distribution" \
         PROVISIONING_PROFILE_SPECIFIER="Your Provisioning Profile Name"
 
     - name: Export .IPA
       run: |
         # Export the archive to a final .ipa file
-        xcodebuild -exportArchive -archivePath build/YourApp.xcarchive \
-        -exportPath build -exportOptionsPlist path/to/ExportOptions.plist
+        xcodebuild -exportArchive -archivePath build/PPPiosApp.xcarchive \
+        -exportPath build -exportOptionsPlist ./ExportOptions.plist
         
     - name: Upload to TestFlight/App Store Connect
       uses: apple-actions/upload-testflight-build@v3
       with:
-        app-path: build/YourApp.ipa # Path to the .ipa file created in the previous step
+        app-path: build/PPPiosApp.ipa # Path to the .ipa file created in the previous step
         issuer-id: ${{ secrets.APP_STORE_ISSUER_ID }}
         api-key-id: ${{ secrets.APP_STORE_KEY_ID }}
         api-private-key: ${{ secrets.APP_STORE_PRIVATE_KEY }} # Note the secret name
