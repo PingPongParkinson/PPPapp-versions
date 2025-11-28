@@ -21,8 +21,8 @@ jobs:
     - name: Install Dependencies
       run: |
         gem install bundler # Install bundler if needed
-        # cd into your 'ios' directory if your Xcode project isn't at the root
-        # pod install 
+        cd ios
+        pod install 
         
     - name: Import Apple Code Signing Certificates
       # This Action decodes and imports your certs/profiles into a temporary keychain
@@ -36,16 +36,16 @@ jobs:
     - name: Build and Archive the iOS App
       # Use an action or the native 'xcodebuild' command
       run: |
-        xcodebuild -workspace YourProject.xcworkspace -scheme YourScheme \
+        xcodebuild -workspace iosApp.xcworkspace -scheme iosApp \
         -configuration Release archive -archivePath build/PPPiosApp.xcarchive \
         CODE_SIGN_IDENTITY="Apple Distribution" \
-        PROVISIONING_PROFILE_SPECIFIER="Your Provisioning Profile Name"
+        PROVISIONING_PROFILE_SPECIFIER="PPP App Store Profile"
 
     - name: Export .IPA
       run: |
         # Export the archive to a final .ipa file
         xcodebuild -exportArchive -archivePath build/PPPiosApp.xcarchive \
-        -exportPath build -exportOptionsPlist ./ExportOptions.plist
+        -exportPath build -exportOptionsPlist .github/workflows/ExportOptions.plist
         
     - name: Upload to TestFlight/App Store Connect
       uses: apple-actions/upload-testflight-build@v3
